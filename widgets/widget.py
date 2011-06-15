@@ -117,7 +117,7 @@ class Widget(object):
     @property
     def changeset(self):
         """A number that increments everytime one of this widget's settings changes"""
-        changed = self.settings.hasChanged()
+        changed = self.settings.hasChanged() or self.dataHasChanged()
         if changed:
             self._changeset += 1
         
@@ -142,6 +142,9 @@ class Widget(object):
         self._childrenchanged = False
 
         return changed
+
+    def dataHasChanged(self):
+        return False
 
     def getDocument(self):
         """Return document.

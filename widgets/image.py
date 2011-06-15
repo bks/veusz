@@ -225,6 +225,10 @@ class Image(plotters.GenericPlotter):
                              usertext = 'Smooth',
                              formatting = True ) )
 
+    def dataHasChanged(self):
+        s = self.settings
+        return self.dsmonitor.hasChanged(s.get('data'), s.get('transparencyData'))
+
     def _getUserDescription(self):
         """User friendly description."""
         s = self.settings
@@ -495,12 +499,12 @@ class Image(plotters.GenericPlotter):
         except KeyError:
             return None
 
-        # recompute data
+        # recompute data 
         if data.dimensions == 2:
-            if data != self.lastdataset or self.schangeset != d.changeset:
+            if data != self.lastdataset or self.schangeset != self.changeset:
                 self.updateImage()
                 self.lastdataset = data
-                self.schangeset = d.changeset
+                self.schangeset = self.changeset
             return data
         else:
             return None
