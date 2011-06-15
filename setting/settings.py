@@ -36,6 +36,7 @@ class Settings(object):
         self.usertext = usertext
         self.setnames = []  # a list of names
         self.parent = None
+        self.haschanged = False
 
     def copy(self):
         """Make a copy of the settings and its subsettings."""
@@ -98,11 +99,14 @@ class Settings(object):
         if readonly:
             setting.readonly = True
         
+        self.haschanged = True
+        
     def remove(self, name):
         """Remove name from the list of settings."""
 
         del self.setnames[ self.setnames.index( name ) ]
         del self.setdict[ name ]
+        self.haschanged = True
         
     def __setattr__(self, name, val):
         """Allow us to do
@@ -113,6 +117,7 @@ class Settings(object):
         d = self.__dict__['setdict']
         if name in d:
             d[name].val = val
+            self.__dict__['haschanged'] = True
         else:
             self.__dict__[name] = val
 
@@ -246,4 +251,13 @@ class Settings(object):
                 except Reference.ResolveException:
                     pass
 
-
+    def hasChanged(self):
+        ret = False
+        
+        for n in self.setdict.itervalues():
+            c = n.hasChanged()
+            ret = ret or c
+        
+        hc = self.haschanged
+        self.haschanged = False
+        return ret or hc

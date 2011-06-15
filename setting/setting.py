@@ -68,6 +68,8 @@ class Setting(object):
         self.default = value
         self.onmodified = qt4.QObject()
         self._val = None
+        self.oldval = None
+        self.haschanged = False
 
         # calls the set function for the val property
         self.val = value
@@ -125,10 +127,27 @@ class Setting(object):
             # this also removes the linked value if there is one set
             self._val = self.convertTo(v)
 
+        self.haschanged = True
+        self.oldval = None
         self.onmodified.emit(qt4.SIGNAL("onModified"), True)
 
     val = property(get, set, None,
                    'Get or modify the value of the setting')
+
+    def hasChanged(self):
+        """ Has the value changed since the last time we were asked?"""
+        if self.haschanged:
+            self.haschanged = False
+            return True
+        elif isinstance(self._val, Reference):
+            # since references are resolved lazily, we need to actually check
+            # whether the value has changed; we use the string form to have
+            # something easily comparable
+            v = self.toText()
+            if v != self.oldval:
+                self.oldval = v
+                return True
+        return False
 
     def isReference(self):
         """Is this a setting a reference to another object."""

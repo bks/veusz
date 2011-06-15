@@ -96,6 +96,11 @@ class Widget(object):
 
         # pts user can move around
         self.controlgraphitems = []
+        
+        # change tracking
+        self._changeset = 1
+        self._lastchangeset = 1
+        self._childrenchanged = False
 
     @classmethod
     def addSettings(klass, s):
@@ -108,6 +113,35 @@ class Widget(object):
     def isWidget(self):
         """Is this object a widget?"""
         return True
+
+    @property
+    def changeset(self):
+        """A number that increments everytime one of this widget's settings changes"""
+        changed = self.settings.hasChanged()
+        if changed:
+            self._changeset += 1
+        
+        return self._changeset
+    
+    def hasChanged(self):
+        """Whether this widget or any of its children have changed"""
+
+        # always iterate over our children to read and clear their changes
+        changed = False
+        for child in self.children:
+            c = child.hasChanged()
+            changed = changed or c
+        
+        # and also check ourself for changes
+        cs = self.changeset
+        if cs != self._lastchangeset:
+            self._lastchangeset = c
+            changed = True
+
+        changed = changed or self._childrenchanged
+        self._childrenchanged = False
+
+        return changed
 
     def getDocument(self):
         """Return document.
@@ -130,6 +164,7 @@ class Widget(object):
                 raise ValueError, 'New name "%s" already exists' % name
 
         self.name = name
+        self._childrenchanged = True
         self.document.setModified()
 
     def addDefaultSubWidgets(self):
@@ -180,6 +215,7 @@ class Widget(object):
         index is a position to place the new child
         """
         self.children.insert(index, child)
+        self._childrenchanged = True
 
     def createUniqueName(self, prefix):
         """Create a name using the prefix which hasn't been used before."""
@@ -257,6 +293,8 @@ class Widget(object):
         else:
             raise ValueError, \
                   "Cannot remove graph '%s' - does not exist" % name
+        
+        self._childrenchanged = True
 
     def widgetSiblingIndex(self):
         """Get index of widget in its siblings."""
@@ -409,6 +447,8 @@ class Widget(object):
             if existingname:
                 w.name = w.chooseName()
 
+            self._childrenchanged = True
+            newparent._childrenchanged = True
             self.document.setModified(True)
             return True
 
