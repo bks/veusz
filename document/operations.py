@@ -421,19 +421,13 @@ class OperationDatasetSet(object):
     def do(self, document):
         """Set dataset, backing up existing one."""
     
-        if self.datasetname in document.data:
-            self.olddata = document.data[self.datasetname]
-        else:
-            self.olddata = None
-            
+        self.olddata = document.data.get(self.datasetname, None)
         document.setData(self.datasetname, self.dataset)
 
     def undo(self, document):
         """Undo the data setting."""
         
-        document.deleteData(self.datasetname)
-        if self.olddata is not None:
-            document.setData(self.datasetname, self.olddata)
+        document.updateData({ self.datasetname : self.olddata })
     
 class OperationDatasetDelete(object):
     """Delete a dateset."""
@@ -552,9 +546,7 @@ class OperationDatasetCreate(object):
         
     def undo(self, document):
         """Delete the created dataset."""
-        document.deleteData(self.datasetname)
-        if self.olddataset is not None:
-            document.setData(self.datasetname, self.olddataset)
+        document.updateData({ self.datasetname : self.olddataset })
         
 class OperationDatasetCreateRange(OperationDatasetCreate):
     """Create a dataset in a specfied range."""
@@ -719,9 +711,7 @@ class OperationDataset2DBase(object):
 
     def undo(self, document):
         """Undo dataset creation."""
-        document.deleteData(self.datasetname)
-        if self.olddataset:
-            document.setData(self.datasetname, self.olddataset)
+        document.updateData({ self.datasetname : self.olddataset })
 
 class OperationDataset2DCreateExpressionXYZ(OperationDataset2DBase):
     descr = 'create 2D dataset from x, y and z expressions'
@@ -809,8 +799,7 @@ class OperationDatasetDeleteByFile(object):
 
     def undo(self, document):
         """Restore datasets."""
-        for name, ds in self.olddatasets.iteritems():
-            document.setData(name, ds)
+        document.updateData(self.olddatasets)
 
 ###############################################################################
 # Import datasets
@@ -896,12 +885,8 @@ class OperationDataImport(object):
         
     def undo(self, document):
         """Undo import."""
-        
-        for name, ds in self.olddatasets.iteritems():
-            if ds is not None:
-                document.deleteData(name)
-            else:
-                document.setData(name, ds)
+
+        document.updateData(self.olddatasets)
 
 class OperationDataImportCSV(object):
     """Import data from a CSV file."""
@@ -969,12 +954,8 @@ class OperationDataImportCSV(object):
 
     def undo(self, document):
         """Undo import."""
-        
-        for name, ds in self.olddatasets.iteritems():
-            if ds is not None:
-                document.deleteData(name)
-            else:
-                document.setData(name, ds)
+
+        document.updateData(self.olddatasets)
         
 class OperationDataImport2D(object):
     """Import a 2D matrix from a file."""
@@ -1076,12 +1057,7 @@ class OperationDataImport2D(object):
     def undo(self, document):
         """Undo import."""
         
-        # restore old datasets
-        for name, ds in self.olddatasets.iteritems():
-            if ds is not None:
-                document.deleteData(name)
-            else:
-                document.setData(name, ds)
+        document.updateData(self.olddatasets)
     
 class OperationDataImportFITS(object):
     """Import 1d or 2d data from a fits file."""
@@ -1202,19 +1178,13 @@ class OperationDataImportFITS(object):
                                                 [self.datacol, self.symerrcol,
                                                  self.poserrcol, self.negerrcol])
 
-        if self.dsname in document.data:
-            self.olddataset = document.data[self.dsname]
-        else:
-            self.olddataset = None
+        self.olddataset = document.data.get(self.dsname, None)
         document.setData(self.dsname, ds)
 
     def undo(self, document):
         """Undo the import."""
-        
-        document.deleteData(self.dsname)
-            
-        if self.olddataset is not None:
-            document.setData(self.dsname, self.olddataset)
+
+        document.updateData({ self.dsname: self.olddataset })
 
 class OperationDataImportPlugin(object):
     """Import data using a plugin."""
@@ -1287,8 +1257,7 @@ class OperationDataImportPlugin(object):
 
             # save old dataset for undo
             d.name = self.prefix + d.name + self.suffix
-            if d.name in document.data:
-                self.olddata[d.name] = document.data[d.name]
+            self.olddata[d.name] = document.data.get(d.name, None)
 
             # actually make dataset
             document.setData(d.name, ds)
@@ -1299,10 +1268,7 @@ class OperationDataImportPlugin(object):
     def undo(self, document):
         """Undo import."""
 
-        for name in self.datasetnames:
-            document.deletData(name)
-        for name, dataset in self.olddata.iteritems():
-            document.setData(name, dataset)
+        document.updateData(self.olddata)
 
 class OperationDataCaptureSet(object):
     """An operation for setting the results from a SimpleRead into the
@@ -1326,21 +1292,12 @@ class OperationDataCaptureSet(object):
         self.nameschanged = self.simplereadobject.setInDocument(document)
 
         # keep a copy of datasets which have changed from backup
-        self.olddata = {}
-        for name in self.nameschanged:
-            if name in databackup:
-                self.olddata[name] = databackup[name]
+        self.olddata = dict([ (name, databackup.get(name, None)) for name in self.nameschanged])
 
     def undo(self, document):
         """Undo the results of the capture."""
 
-        for name in self.nameschanged:
-            if name in self.olddata:
-                # replace datasets with what was there previously
-                document.setData(name, self.olddata[name])
-            else:
-                # or delete datasets that weren't there before
-                document.deleteData(name)
+        document.updateData(self.olddata)
 
 ###############################################################################
 # Alter dataset
@@ -1583,15 +1540,12 @@ class OperationDatasetPlugin(object):
             if names[i] in self.names:
                 names[i] = self.names[names[i]]
 
-        # preserve old datasets
-        for name in names:
-            if name in document.data:
-                self.olddata[name] = document.data[name]
-
         # add new datasets to document
         for name, ds in izip(names, manager.veuszdatasets):
             if name is not None:
-                document.data[name] = ds
+                # record old data or lack thereof
+                self.olddata[name] = document.data.get(name, None)
+                document.setData(name, ds)
 
         return names
 
@@ -1602,11 +1556,4 @@ class OperationDatasetPlugin(object):
     def undo(self, document):
         """Undo dataset plugin."""
 
-        # delete datasets which were created
-        for name in self.datasetnames:
-            if name is not None:
-                document.deleteData(name)
-
-        # put back old datasets
-        for name, ds in self.olddata.iteritems():
-            document.setData(name, ds)
+        document.updateData(self.olddata)

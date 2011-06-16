@@ -272,9 +272,30 @@ class Document( qt4.QObject ):
             self.datachangesets[name] += 1
             self.datachangeset += 1
             self.setModified()
+    
+    def updateData(self, datasets):
+        """Update multiple datasets atomically. Datasets is a name-to-dataset
+        mapping; if the dataset for a given name is None, that dataset is deleted.
+        All operations are executed before document modification listeners are
+        notified.
+        """
+        for name, ds in datasets.iteritems():
+            if ds is not None:
+                self.data[name] = ds
+                ds.document = self
+            elif name in self.data:
+                del self.data[name]
+
+            cs = self.datachangesets.get(name, 0)
+            self.datachangesets[name] = cs + 1
+
+        self.datachangeset += 1
+        self.setModified()
 
     def modifiedData(self, dataset):
-        """The named dataset was modified"""
+        """Tell the document that a dataset was modified. Note that dataset is
+        the actual Dataset, not its name. If you have its name, just call setData().
+        """
         for name, ds in self.data.iteritems():
             if ds is dataset:
                 self.datachangesets[name] += 1
@@ -324,16 +345,16 @@ class Document( qt4.QObject ):
                 return name
         raise ValueError, "Cannot find dataset"
 
-    def deleteDataset(self, name):
-        """Remove the selected dataset."""
-        del self.data[name]
-        self.setModified()
-
     def renameDataset(self, oldname, newname):
         """Rename the dataset."""
         d = self.data[oldname]
         del self.data[oldname]
         self.data[newname] = d
+        
+        cs = self.datachangesets.get(newname, 0)
+        self.datachangesets[newname] = cs + 1
+        self.datachangesets[oldname] += 1
+        self.datachangeset += 1
 
         self.setModified()
 

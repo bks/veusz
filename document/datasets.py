@@ -147,24 +147,28 @@ class LinkedFileBase(object):
         '''Reload datasets linked to this file.'''
         pass
 
-    def _deleteLinkedDatasets(self, document):
+    def _getLinkedDatasets(self, document):
         """Delete linked datasets from document linking to self."""
 
+        linked = set()
         for name, ds in document.data.items():
             if ds.linked == self:
-                document.deleteData(name)
+                linked.add(name)
+        return linked
 
-    def _moveReadDatasets(self, tempdoc, document):
+    def _moveReadDatasets(self, tempdoc, document, linkednames):
         """Move datasets from tempdoc to document if they do not exist
         in the destination."""
 
         read = []
+        update = {}
         for name, ds in tempdoc.data.items():
-            if name not in document.data:
+            if name not in document.data or name in linkednames:
                 read.append(name)
-                document.setData(name, ds)
-                ds.document = document
                 ds.linked = self
+                update[name] = ds
+
+        document.updateData(update)
         return read
 
     def _reloadViaOperation(self, document, op):
@@ -183,10 +187,9 @@ class LinkedFileBase(object):
                            if ds.linked is self])
             return ([], errors)            
             
-        # delete datasets which are linked and imported here
-        self._deleteLinkedDatasets(document)
         # move datasets into document
-        read = self._moveReadDatasets(tempdoc, document)
+        linkednames = self._getLinkedDatasets(document)
+        read = self._moveReadDatasets(tempdoc, document, linkednames)
 
         # return zero errors
         errors = dict( [(ds, 0) for ds in read] )
@@ -260,8 +263,9 @@ class LinkedFile(LinkedFileBase):
 
         errors = sr.getInvalidConversions()
 
-        self._deleteLinkedDatasets(document)
-        read = self._moveReadDatasets(tempdoc, document)
+        # move datasets into document
+        linkednames = self._getLinkedDatasets(document)
+        read = self._moveReadDatasets(tempdoc, document, linkednames)
 
         # returns list of datasets read, and a dict of variables with number
         # of errors
