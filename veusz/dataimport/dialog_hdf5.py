@@ -553,7 +553,7 @@ class ImportTabHDF5(importdialog.ImportTab):
             # check can be opened first
             with open(filename, "r") as f:
                 pass
-            with h5py.File(filename, "r") as f:
+            with defn_hdf5.openHDF5(filename) as f:
                 self.rootnode, self.datanodes = constructTree(f)
         except IOError:
             self.showError(_("Cannot open file"))

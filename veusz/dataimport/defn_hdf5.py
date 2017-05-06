@@ -42,6 +42,16 @@ def inith5py():
             "Cannot load Python h5py module. "
             "Please install before loading documents using HDF5 data.")
 
+def openHDF5(filename):
+  '''
+  Open an HDF5 file in read-only mode. Try to open it in SWMR mode but fall
+  back gracefully if not supported.
+  '''
+    try:
+      return h5py.File(filename, "r", libver="latest", swmr=True)
+    except:
+      return h5py.File(filename, "r")
+
 def bconv(s):
     """Hack for h5py byte problem with python3.
     https://github.com/h5py/h5py/issues/379
@@ -317,7 +327,7 @@ class OperationDataImportHDF5(base.OperationDataImportBase):
             if dtype.kind == 'V':
                 # compound dataset - walk columns
                 if not names:
-                    names = item.dtype.names 
+                    names = item.dtype.names
 
                 for name in names:
                     attrs = filterAttrsByName(item.attrs, name)
@@ -342,7 +352,7 @@ class OperationDataImportHDF5(base.OperationDataImportBase):
         """Read data from hdf5 file and return a dict of names to data."""
 
         dsread = {}
-        with h5py.File(self.params.filename) as hdff:
+        with openHDF5(self.params.filename) as hdff:
             for hi in self.params.items:
                 # workaround for h5py bug
                 # using unicode names for groups/datasets does not work
@@ -591,7 +601,7 @@ def ImportFileHDF5(comm, filename,
           1970-01-01
        for a text dataset, this should give the format of the date/time,
           e.g. 'YYYY-MM-DD|T|hh:mm:ss' or 'iso' for iso format
- 
+
     renames is a dict mapping old to new dataset names, to be renamed
     after importing
 
@@ -609,7 +619,7 @@ def ImportFileHDF5(comm, filename,
      'vsz_convert_datetime': treat as date/time, set to one of the values
                              above.
     References to other datasets can be provided in thes attributes.
- 
+
     For compound datasets these attributes can be given on a
     per-column basis using attribute names
     vsz_attributename_columnname.
